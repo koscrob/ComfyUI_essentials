@@ -46,11 +46,13 @@ class ApplyCLIPSeg:
         imagenp = image.mul(255).clamp(0, 255).byte().cpu().numpy()
 
         outputs = []
+        prompt = [p.strip() for p in prompt.split(",") if p.strip()]
+        prompt = [""] if len(prompt) == 0 else prompt
         for i in imagenp:
-            inputs = processor(text=prompt, images=[i], return_tensors="pt")
-            out = model(**inputs)
-            out = out.logits.unsqueeze(1)
-            out = torch.sigmoid(out[0][0])
+            inputs = processor(text=prompt, images=[i] * len(prompt), return_tensors="pt", padding=True)
+            out = model(**inputs).logits  # shape: (num_prompts, H, W)
+            out = torch.sigmoid(out)
+            out = out.max(dim=0).values
             out = (out > threshold)
             outputs.append(out)
 
